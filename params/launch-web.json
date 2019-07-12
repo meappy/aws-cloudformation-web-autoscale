@@ -1,0 +1,18 @@
+[
+  { "ParameterKey": "ParamStackName",         "ParameterValue": "Web-Cluster" },
+  { "ParameterKey": "ParamNotificationEmail", "ParameterValue": "g@sim.mn" },
+  { "ParameterKey": "ParamVpcStackName",      "ParameterValue": "web-cluster-v27" },
+  { "ParameterKey": "ParamELBType",           "ParameterValue": "network" },
+  { "ParameterKey": "ParamVpcCidr",           "ParameterValue": "172.16.0.0/16" },
+  { "ParameterKey": "ParamSubnetPubZoneA",    "ParameterValue": "172.16.1.0/25" },
+  { "ParameterKey": "ParamSubnetPubZoneB",    "ParameterValue": "172.16.2.0/25" },
+  { "ParameterKey": "ParamSubnetPubZoneC",    "ParameterValue": "172.16.3.0/25" },
+  { "ParameterKey": "ParamSubnetPrvZoneA",    "ParameterValue": "172.16.1.128/25" },
+  { "ParameterKey": "ParamSubnetPrvZoneB",    "ParameterValue": "172.16.2.128/25" },
+  { "ParameterKey": "ParamSubnetPrvZoneC",    "ParameterValue": "172.16.3.128/25" },
+  { "ParameterKey": "ParamAccessKey",         "ParameterValue": "initial" },
+  { "ParameterKey": "ParamCertificateArn",    "ParameterValue": "arn:aws:acm:ap-southeast-2:398814400782:certificate/7f7ebde1-8b09-4ec4-bcf1-3766d4adf013" },
+  { "ParameterKey": "ParamAutoScaleGroupTag", "ParameterValue": "auto-scale-group" },
+  { "ParameterKey": "ParamImageId",           "ParameterValue": "ami-07a3bd4944eb120a0" },
+  { "ParameterKey": "ParamInstanceType",      "ParameterValue": "t2.medium" }
+]

@@ -1,0 +1,576 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Web Cluster
+
+Parameters:
+  ParamStackName:
+    Type: String
+
+  ParamNotificationEmail:
+    Type: String
+
+  ParamVpcStackName:
+    Type: String
+
+  ParamELBType:
+    Type: String
+
+  ParamVpcCidr:
+    Type: String
+
+  ParamSubnetPubZoneA:
+    Type: String
+
+  ParamSubnetPubZoneB:
+    Type: String
+
+  ParamSubnetPubZoneC:
+    Type: String
+
+  ParamSubnetPrvZoneA:
+    Type: String
+
+  ParamSubnetPrvZoneB:
+    Type: String
+
+  ParamSubnetPrvZoneC:
+    Type: String
+
+  ParamAccessKey:
+    Type: String
+
+  ParamAutoScaleGroupTag:
+    Type: String
+
+  ParamCertificateArn:
+    Type: String
+
+  ParamImageId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-e2021d81
+
+  ParamInstanceType:
+    Type: String
+    Default: t2.nano
+    AllowedValues:
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        !Ref ParamVpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: StackName
+          Value:
+            !Ref ParamStackName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  ElasticNatA:
+    Type: AWS::EC2::EIP
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt ElasticNatA.AllocationId
+      SubnetId:
+        !Ref SubnetPrvZoneA
+    DependsOn: VPCGatewayAttachment
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId:
+        !Ref InternetGateway
+      VpcId:
+        !Ref VPC
+
+  RouteTableNET:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        !Ref VPC
+
+  RouteTableNAT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        !Ref VPC
+
+  RouteNET:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        !Ref InternetGateway
+      RouteTableId:
+        !Ref RouteTableNET
+
+  RouteNAT:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        !Ref NatGateway
+      RouteTableId:
+        !Ref RouteTableNAT
+
+  RouteTableAssociationPubA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        !Ref RouteTableNET
+      SubnetId:
+        !Ref SubnetPubZoneA
+
+  SubnetPubZoneA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-southeast-2a
+      CidrBlock:
+        !Ref ParamSubnetPubZoneA
+      MapPublicIpOnLaunch: false
+      VpcId:
+        !Ref VPC
+
+  RouteTableAssociationPubB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        !Ref RouteTableNET
+      SubnetId:
+        !Ref SubnetPubZoneB
+
+  SubnetPubZoneB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-southeast-2b
+      CidrBlock:
+        !Ref ParamSubnetPubZoneB
+      MapPublicIpOnLaunch: false
+      VpcId:
+        !Ref VPC
+
+  RouteTableAssociationPubC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        !Ref RouteTableNET
+      SubnetId:
+        !Ref SubnetPubZoneC
+
+  SubnetPubZoneC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-southeast-2c
+      CidrBlock:
+        !Ref ParamSubnetPubZoneC
+      MapPublicIpOnLaunch: false
+      VpcId:
+        !Ref VPC
+
+  RouteTableAssociationPrvA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        !Ref RouteTableNET
+      SubnetId:
+        !Ref SubnetPrvZoneA
+
+  SubnetPrvZoneA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-southeast-2a
+      CidrBlock:
+        !Ref ParamSubnetPrvZoneA
+      MapPublicIpOnLaunch: true
+      VpcId:
+        !Ref VPC
+
+  RouteTableAssociationPrvB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        !Ref RouteTableNAT
+      SubnetId:
+        !Ref SubnetPrvZoneB
+
+  SubnetPrvZoneB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-southeast-2b
+      CidrBlock:
+        !Ref ParamSubnetPrvZoneB
+      MapPublicIpOnLaunch: false
+      VpcId:
+        !Ref VPC
+
+  RouteTableAssociationPrvC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        !Ref RouteTableNAT
+      SubnetId:
+        !Ref SubnetPrvZoneC
+
+  SubnetPrvZoneC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-southeast-2c
+      CidrBlock:
+        !Ref ParamSubnetPrvZoneC
+      MapPublicIpOnLaunch: false
+      VpcId:
+        !Ref VPC
+
+  SecurityGroupWeb:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Web & mgmt
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !Ref ParamVpcCidr
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref ParamVpcCidr
+        - IpProtocol: tcp
+          FromPort: 3306 # mysql
+          ToPort: 3306
+          CidrIp: !Ref ParamVpcCidr
+        - IpProtocol: tcp
+          FromPort: 4567 # galera_wsrep_node_address_port https://bit.ly/2ZB4DUC
+          ToPort: 4568 # galera_ist_recv_addr_port
+          CidrIp: !Ref ParamVpcCidr
+        - IpProtocol: tcp
+          FromPort: 4444 # galera rsync
+          ToPort: 4444
+          CidrIp: !Ref ParamVpcCidr
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 101.166.140.132/32
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 202.58.44.241/32
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      VpcId:
+        !Ref VPC
+
+  SecurityGroupRKE:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RKE
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2376
+          ToPort: 2376
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 2379
+          ToPort: 2380
+          CidrIp: !Ref ParamVpcCidr
+        - IpProtocol: tcp
+          FromPort: 6443
+          ToPort: 6443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: udp
+          FromPort: 4789
+          ToPort: 4789
+          CidrIp: !Ref ParamVpcCidr
+        - IpProtocol: udp
+          FromPort: 8472
+          ToPort: 8472
+          CidrIp: !Ref ParamVpcCidr
+        - IpProtocol: tcp
+          FromPort: 10250
+          ToPort: 10252
+          CidrIp: !Ref ParamVpcCidr
+        - IpProtocol: tcp
+          FromPort: 10256
+          ToPort: 10256
+          CidrIp: !Ref ParamVpcCidr
+      VpcId:
+        !Ref VPC
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: !Ref ParamELBType
+      Subnets:
+        - !Ref SubnetPubZoneA
+        - !Ref SubnetPubZoneB
+        - !Ref SubnetPubZoneC
+      Tags:
+        - Key: StackName
+          Value: ParamStackName
+        - Key: BaseStack
+          Value:
+            !Ref ParamVpcStackName
+
+  LoadBalancerTargetGroup80:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckPath: /healthz
+      Port: 80
+      Protocol: TCP
+      HealthCheckIntervalSeconds: 10
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 6
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: '200-399'
+      VpcId:
+        !Ref VPC
+
+  LoadBalancerTargetGroup443:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckPath: /healthz
+      Port: 443
+      Protocol: TCP
+      HealthCheckIntervalSeconds: 10
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 6
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: '200-399'
+      VpcId:
+        !Ref VPC
+
+  LoadBalancerListener80:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Port: 80
+      Protocol: TCP
+      LoadBalancerArn:
+        !Ref LoadBalancer
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            !Ref LoadBalancerTargetGroup80
+
+  LoadBalancerListener443:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Port: 443
+      Protocol: TCP
+      LoadBalancerArn:
+        !Ref LoadBalancer
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            !Ref LoadBalancerTargetGroup443
+
+  LaunchConfigurationWeb:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:
+        !Ref ParamImageId
+      InstanceType:
+        !Ref ParamInstanceType
+      KeyName:
+        !Ref ParamAccessKey
+      SecurityGroups:
+        - !Ref SecurityGroupWeb
+        - !Ref SecurityGroupRKE
+      UserData:
+        "Fn::Base64": !Sub |
+          #cloud-config
+          package_upgrade: true
+          packages:
+            - awscli
+          write_files:
+              - path: /root/.aws/config
+                owner: 'root:root'
+                permissions: '0600'
+                content: |
+                  [default]
+                  region = ap-southeast-2
+              - path: /root/.aws/credentials
+                owner: 'root:root'
+                permissions: '0600'
+                content: |
+                  [default]
+                  aws_access_key_id = 
+                  aws_secret_access_key = 
+          runcmd:
+            - [ mkdir, -p, /opt/web/deploy ]
+            - [ aws, s3, cp, 's3://hw-test-deploy/web-cluster/deploy.sh', /opt/web/deploy/ ]
+            - [ chmod, '700', /opt/web/deploy ]
+            - [ chmod, '700', /opt/web/deploy/deploy.sh ]
+            - [ /opt/web/deploy/deploy.sh ]
+            - [ touch, /root/built ]
+          users:
+            - default
+          power_state:
+            delay: "+1"
+            mode: reboot
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MaxSize: 4
+      MinSize: 3
+      DesiredCapacity: 3
+      HealthCheckGracePeriod: 360
+      LaunchConfigurationName:
+        !Ref LaunchConfigurationWeb
+      TargetGroupARNs:
+        - !Ref LoadBalancerTargetGroup80
+        - !Ref LoadBalancerTargetGroup443
+      AvailabilityZones:
+        Fn::GetAZs:
+          !Ref AWS::Region
+      VPCZoneIdentifier:
+        - !Ref SubnetPrvZoneA
+        - !Ref SubnetPrvZoneB
+        - !Ref SubnetPrvZoneC
+      Tags:
+        - Key: StackName
+          Value: ParamStackName
+          PropagateAtLaunch: true
+        - Key: Name
+          Value:
+            !Ref ParamAutoScaleGroupTag
+          PropagateAtLaunch: true
+    DependsOn:
+      - VPCGatewayAttachment
+      - SecurityGroupWeb
+      - SecurityGroupRKE
+      - SubnetPrvZoneA
+      - SubnetPrvZoneB
+      - SubnetPrvZoneC
+      - RouteTableAssociationPrvA
+      - RouteTableAssociationPrvB
+      - RouteTableAssociationPrvC
+
+  AutoScalingPolicyUp:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName:
+        !Ref AutoScalingGroup
+      PolicyType: StepScaling
+      StepAdjustments:
+        - MetricIntervalLowerBound: 0
+          ScalingAdjustment: 1
+
+  AutoScalingPolicyDown:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName:
+        !Ref AutoScalingGroup
+      PolicyType: StepScaling
+      StepAdjustments:
+        - MetricIntervalUpperBound: 0
+          ScalingAdjustment: -1
+
+  AlarmScaleUp:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - !Ref AutoScalingPolicyUp
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value:
+            !Ref AutoScalingGroup
+      EvaluationPeriods: 3
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Period: 300
+      Statistic: Average
+      Threshold: 80
+
+  AlarmScaleDown:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - !Ref AutoScalingPolicyDown
+      ComparisonOperator: LessThanOrEqualToThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value:
+            !Ref AutoScalingGroup
+      EvaluationPeriods: 6
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Period: 300
+      Statistic: Average
+      Threshold: 79
+
+Outputs:
+  OutputVPC:
+    Value: !Ref VPC
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", VPC ] ]
+
+  OutputSubnetPubZoneA:
+    Value: !Ref SubnetPubZoneA
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", SubnetPubZoneA ] ]
+
+  OutputSubnetPubZoneB:
+    Value: !Ref SubnetPubZoneB
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", SubnetPubZoneB ] ]
+
+  OutputSubnetPubZoneC:
+    Value: !Ref SubnetPubZoneC
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", SubnetPubZoneC ] ]
+
+  OutputSubnetPrvZoneA:
+    Value: !Ref SubnetPrvZoneA
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", SubnetPrvZoneA ] ]
+
+  OutputSubnetPrvZoneB:
+    Value: !Ref SubnetPrvZoneB
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", SubnetPrvZoneB ] ]
+
+  OutputSubnetPrvZoneC:
+    Value: !Ref SubnetPrvZoneC
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", SubnetPrvZoneC ] ]
+
+  OutputSecurityGroupWeb:
+    Value: !Ref SecurityGroupWeb
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", SecurityGroupWeb ] ]
+
+  OutputSecurityGroupRKE:
+    Value: !Ref SecurityGroupRKE
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", SecurityGroupRKE ] ]
+
+  OutputElbLoadBalancerWeb:
+    Value: !GetAtt [ LoadBalancer,DNSName ]
+    Export:
+      Name: !Join [ ":", [ !Ref ParamVpcStackName, OutputElbLoadBalancerWeb ] ]
+
+# vim:syntax=yaml tabstop=2 expandtab nowrap:
